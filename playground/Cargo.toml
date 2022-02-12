@@ -1,0 +1,8 @@
+[package]
+name = "playground"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+versebase = { path = "../versebase" }
+versebase_derive = { path = "../versebase/versebase_derive" }
