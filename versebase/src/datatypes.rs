@@ -6,10 +6,10 @@ trait DataType<T> {
     fn new(value: T) -> Self;
     // TODO: rename to "from"
     fn from_(raw: &[u8]) -> Self;
-    fn parse(raw: &[u8]) -> T;
+    fn deserialize(raw: &[u8]) -> T;
 
-    fn resolve(&self) -> T;
-    fn build(&self) -> Box<[u8]>;
+    fn get(&self) -> T;
+    fn serialize(&self) -> Box<[u8]>;
 }
 
 
@@ -23,18 +23,18 @@ impl DataType<i32> for Int {
     }
 
     fn from_(raw: &[u8]) -> Int {
-        Self {value: Int::parse(raw)}
+        Self {value: Int::deserialize(raw)}
     }
 
-    fn parse(raw: &[u8]) -> i32 {
+    fn deserialize(raw: &[u8]) -> i32 {
         i32::from_ne_bytes(raw.try_into().unwrap_or([0, 0, 0, 0]))
     }
 
-    fn resolve(&self) -> i32 {
+    fn get(&self) -> i32 {
         self.value.clone()
     }
 
-    fn build(&self) -> Box<[u8]> {
+    fn serialize(&self) -> Box<[u8]> {
         self.value.to_ne_bytes().into()
     }
 }
@@ -50,18 +50,18 @@ impl DataType<String> for Str {
     }
 
     fn from_(raw: &[u8]) -> Self {
-        Self {value: Self::parse(raw)}
+        Self {value: Self::deserialize(raw)}
     }
 
-    fn parse(raw: &[u8]) -> String {
+    fn deserialize(raw: &[u8]) -> String {
         String::from_utf8(raw.into()).unwrap_or(String::from("#!ERR"))
     }
 
-    fn resolve(&self) -> String {
+    fn get(&self) -> String {
         self.value.clone()
     }
 
-    fn build(&self) -> Box<[u8]> {
+    fn serialize(&self) -> Box<[u8]> {
         self.value.clone().into_bytes().into()
     }
 }
@@ -77,10 +77,10 @@ impl DataType<chrono::NaiveDateTime> for DateTime {
     }
 
     fn from_(raw: &[u8]) -> Self {
-        Self {value: Self::parse(raw)}
+        Self {value: Self::deserialize(raw)}
     }
 
-    fn parse(raw: &[u8]) -> chrono::NaiveDateTime {
+    fn deserialize(raw: &[u8]) -> chrono::NaiveDateTime {
         let raw_: i64 = i64::from_ne_bytes(
             raw.try_into().unwrap_or([0, 0, 0, 0, 0, 0, 0, 0])
         );
@@ -90,11 +90,11 @@ impl DataType<chrono::NaiveDateTime> for DateTime {
         )
     }
 
-    fn resolve(&self) -> chrono::NaiveDateTime {
+    fn get(&self) -> chrono::NaiveDateTime {
         self.value.clone()
     }
 
-    fn build(&self) -> Box<[u8]> {
+    fn serialize(&self) -> Box<[u8]> {
         self.value.timestamp_nanos().to_ne_bytes().into()
     }
 }
@@ -114,16 +114,16 @@ mod tests {
 
         let obj = Int::new(num);
 
-        assert_eq!(obj.resolve(), num);
+        assert_eq!(obj.get(), num);
 
         if cfg!(target_endian = "big") {
-            assert_eq!(Int::parse(&byte_array_be), num);
-            assert_eq!(Int::from_(&byte_array_be).resolve(), num);
-            assert_eq!(obj.build().deref(), byte_array_be);
+            assert_eq!(Int::deserialize(&byte_array_be), num);
+            assert_eq!(Int::from_(&byte_array_be).get(), num);
+            assert_eq!(obj.serialize().deref(), byte_array_be);
         } else {
-            assert_eq!(Int::parse(&byte_array_le), num);
-            assert_eq!(Int::from_(&byte_array_le).resolve(), num);
-            assert_eq!(obj.build().deref(), byte_array_le);
+            assert_eq!(Int::deserialize(&byte_array_le), num);
+            assert_eq!(Int::from_(&byte_array_le).get(), num);
+            assert_eq!(obj.serialize().deref(), byte_array_le);
         }
     }
 
@@ -133,10 +133,10 @@ mod tests {
         let byte_array = [65, 109, 111, 117, 114, 32, 80, 108, 97, 115, 116, 105, 113, 117, 101];
 
         let obj = Str::new(text.clone());
-        assert_eq!(obj.resolve(), text.clone());
-        assert_eq!(obj.build().deref(), byte_array.clone());
-        assert_eq!(Str::parse(&byte_array), text.clone());
-        assert_eq!(Str::from_(&byte_array).resolve(), text.clone());
+        assert_eq!(obj.get(), text.clone());
+        assert_eq!(obj.serialize().deref(), byte_array.clone());
+        assert_eq!(Str::deserialize(&byte_array), text.clone());
+        assert_eq!(Str::from_(&byte_array).get(), text.clone());
     }
 
     #[test]
@@ -147,16 +147,16 @@ mod tests {
 
         let obj = DateTime::new(datetime.clone());
 
-        assert_eq!(obj.resolve(), datetime);
+        assert_eq!(obj.get(), datetime);
 
         if cfg!(target_endian = "big") {
-            assert_eq!(DateTime::parse(&byte_array_be), datetime);
-            assert_eq!(DateTime::from_(&byte_array_be).resolve(), datetime);
-            assert_eq!(obj.build().deref(), byte_array_be);
+            assert_eq!(DateTime::deserialize(&byte_array_be), datetime);
+            assert_eq!(DateTime::from_(&byte_array_be).get(), datetime);
+            assert_eq!(obj.serialize().deref(), byte_array_be);
         } else {
-            assert_eq!(DateTime::parse(&byte_array_le), datetime);
-            assert_eq!(DateTime::from_(&byte_array_le).resolve(), datetime);
-            assert_eq!(obj.build().deref(), byte_array_le);
+            assert_eq!(DateTime::deserialize(&byte_array_le), datetime);
+            assert_eq!(DateTime::from_(&byte_array_le).get(), datetime);
+            assert_eq!(obj.serialize().deref(), byte_array_le);
         }
     }
 
