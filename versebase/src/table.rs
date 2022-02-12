@@ -1,44 +1,40 @@
-//extern crate derive_table_schema;
+use std::path::Path;
 use std::marker::PhantomData;
 use super::index::{TableIndex};
 use std::fs;
 use std::io;
 use std::fs::{File};
+use std::io::{Seek, SeekFrom};
 
 
 pub trait TableSchema {
     fn info();
+
+    fn serialize(&self) -> std::vec::Vec<(String, Box<[u8]>)>;
 }
 
-pub struct Table<S: TableSchema> {
-    pub name: String,
-    pub index: Option<TableIndex>,
+
+struct TableFile<S: TableSchema> {
+    pub filepath: Box<Path>,
+    pub schema: PhantomData<S>,
     file: File,
-    schema: PhantomData<S>,
 }
 
-impl <S: TableSchema> Table<S> {
+impl<S: TableSchema> TableFile<S> {
+    pub fn new(filepath: Box<Path>) -> Result<Self, io::Error> {
+        let file = match Self::init_file(&filepath) {
+            Ok(f) => f,
+            Err(e) => return Err(e),
+        };
 
-    pub fn new(
-        name: String,
-        filepath: String,
-        index: Option<TableIndex>,
-    ) -> Table<S> {
-        let file = Table::<S>::init_file(filepath).expect("Failed to init file.");
-
-        Table {
-            name,
-            index,
+        Ok(TableFile {
+            filepath,
+            schema: PhantomData,
             file,
-            schema: PhantomData
-        }
+        })
     }
 
-    pub fn schema_info() {
-        S::info();
-    }
-
-    fn init_file(path: String) -> Result<File, io::Error> {
+    fn init_file(path: &Box<Path>) -> Result<File, io::Error> {
         let file: File;
 
         if fs::metadata(&path).is_ok() {
@@ -54,5 +50,46 @@ impl <S: TableSchema> Table<S> {
         }
 
         Result::Ok(file)
+    }
+
+
+
+    fn seek(&mut self, pos: usize) -> Result<(), std::io::Error> {
+        return match self.file.seek(SeekFrom::Start(pos as u64)) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e)
+        }
+    }
+}
+
+
+pub struct Table<S: TableSchema> {
+    pub name: String,
+    pub index: Option<TableIndex>,
+    file: TableFile<S>,
+    schema: PhantomData<S>,
+}
+
+impl<S: TableSchema> Table<S> {
+    pub fn new(
+        name: String,
+        filepath: Box<Path>,
+        index: Option<TableIndex>,
+    ) -> Result<Table<S>, io::Error> {
+        let file = match TableFile::<S>::new(filepath.clone()) {
+            Ok(f) => f,
+            Err(e) => return Err(e)
+        };
+
+        Ok(Table {
+            name,
+            index,
+            file,
+            schema: PhantomData,
+        })
+    }
+
+    pub fn schema_info() {
+        S::info();
     }
 }

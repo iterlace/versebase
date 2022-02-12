@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 versebase = { path = "../versebase" }
 versebase_derive = { path = "../versebase/versebase_derive" }
+chrono = "0.4.19"

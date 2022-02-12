@@ -1,8 +1,7 @@
 use chrono;
-use chrono::NaiveDateTime;
 
 
-trait DataType<T> {
+pub trait DataType<T> {
     fn new(value: T) -> Self;
     // TODO: rename to "from"
     fn from_(raw: &[u8]) -> Self;
