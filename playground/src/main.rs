@@ -7,6 +7,7 @@ use std::path::Path;
 
 
 use versebase::table::{Table, TableSchema};
+use versebase::index::{TableIndex};
 use versebase::datatypes::{Int, Str, DateTime, DataType};
 use versebase::datatypes;
 
@@ -20,22 +21,13 @@ struct Songs {
 }
 
 
-// impl Into<std::collections::HashMap<String, dyn versebase::datatypes::DataType<T>>> for Songs {
-// fn into(&self) -> std::collections::HashMap<String, dyn versebase::datatypes::DataType<T>> {
-//     std::collections::HashMap::from([
-//                                     #(
-//                                         (std::stringify!(#field_name), self.#field_name)
-//     ),*
-//     ])
-// }
-// }
-
-
 fn main() {
     let mut table = Table::<Songs>::new(
         String::from("test"),
         Box::from(Path::new("/home/a/CLionProjects/versebase_playground/data/a.tbl")),
-        None,
+        Some(TableIndex::new(
+            Box::from(Path::new("/home/a/CLionProjects/versebase_playground/data/a.idx"))
+        ).unwrap()),
     ).unwrap();
 
     // Table::<Songs>::schema_info();
@@ -56,11 +48,11 @@ fn main() {
         posted_at: DateTime::new(chrono::offset::Utc::now().naive_utc())
     };
 
-    // let a = table.create(s1).unwrap_or_else(|e| panic!("Error creating song1, {:?}", e));
-    // let b = table.create(s2).unwrap();
-    // let c = table.create(s3).unwrap();
+    let a = table.create(s1).unwrap_or_else(|e| panic!("Error creating song1, {:?}", e));
+    let b = table.create(s2).unwrap();
+    let c = table.create(s3).unwrap();
 
-    println!("")
+    println!("");
 
     // let mut file = std::fs::File::open("/home/a/CLionProjects/versebase_playground/data/a.tbl").unwrap();
     //

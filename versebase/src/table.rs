@@ -73,13 +73,17 @@ impl<S: TableSchema> TableFile<S> {
         };
     }
 
+    pub fn position(&mut self) -> u64 {
+        self.file.stream_position().unwrap()
+    }
+
     fn at_beginning(&mut self) -> bool {
-        let pos = self.file.stream_position().unwrap() as i64;
+        let pos = self.position() as i64;
         pos == 0
     }
 
     fn at_end(&mut self) -> bool {
-        let pos = self.file.stream_position().unwrap() as i64;
+        let pos = self.position() as i64;
         pos == self.file.stream_len().unwrap() as i64
     }
 
@@ -89,7 +93,7 @@ impl<S: TableSchema> TableFile<S> {
         }
 
         // Ensure the pointer is at the ending of the last record
-        let pos = self.file.stream_position().unwrap() as i64;
+        let pos = self.position() as i64;
         if !self.at_beginning() && !self.at_end() {
             self.seek(pos - ROWS_DELIMITER.len() as i64).unwrap();
             let mut read_delimiter = [0u8; ROWS_DELIMITER.len()];
@@ -144,12 +148,14 @@ impl<S: TableSchema> TableFile<S> {
         Some(S::from_(fields))
     }
 
-    pub fn write_row(&mut self, row: &S) -> Result<(), std::io::Error> {
+    pub fn write_row(&mut self, row: &S) -> Result<(u64, u64), std::io::Error> {
         match self.seek(-1) {
             Err(e) => return Err(e),
             _ => ()
         };
         let data = row.serialize_to_vec();
+
+        let begin_pos = self.position();
         for i in 0..data.len() {
             self.file.write_all(&data[i].1).unwrap();
             if i != data.len() - 1 {
@@ -158,8 +164,9 @@ impl<S: TableSchema> TableFile<S> {
         }
         self.file.write_all(&ROWS_DELIMITER).unwrap();
 
+        let end_pos = self.position();
         return match self.file.sync_data() {
-            Ok(_) => Ok(()),
+            Ok(_) => Ok((begin_pos, end_pos)),
             Err(e) => Err(e)
         };
     }
@@ -193,23 +200,44 @@ impl<S: TableSchema> Table<S> {
     }
 
     pub fn select(&mut self, id: i32) -> Option<S> {
-        self.file.seek(0).unwrap();
-        loop {
-            match self.file.read_row() {
-                Some(row) if row.get_id() == id => return Some(row),
-                None => return None,
-                _ => continue
+        match &mut self.index {
+            Some(index) => {
+                return match index.get(id) {
+                    Some(pos) => {
+                        self.file.seek(pos as i64);
+                        match self.file.read_row() {
+                            Some(row) => Some(row),
+                            None => None,
+                        }
+                    },
+                    None => None,
+                }
             }
-        }
+            None => {
+                self.file.seek(0).unwrap();
+                loop {
+                    match self.file.read_row() {
+                        Some(row) if row.get_id() == id => return Some(row),
+                        None => return None,
+                        _ => continue
+                    }
+                }
+            }
+        };
     }
 
     pub fn create(&mut self, row: S) -> Result<i32, std::io::Error> {
-        match &self.index {
+        match &mut self.index {
             Some(index) => {
+                if index.exists(row.get_id()) {
+                    panic!("id already exists")
+                }
+                let written_pos = self.file.write_row(&row).unwrap();
+                index.set(row.get_id(), written_pos.0);
+
                 return Ok(row.get_id());
             },
             None => {
-                // let existing: Option<()> = None;
                 let existing = self.select((&row).get_id());
                 match existing {
                     Some(_) => panic!("id already exists"),  // TODO: custom DatabaseError
@@ -220,6 +248,14 @@ impl<S: TableSchema> Table<S> {
                 }
             }
         }
+    }
+
+    pub fn update(&mut self, row: S) -> Result<i32, std::io::Error> {
+        Ok(0)
+    }
+
+    pub fn delete(&mut self, row: S) -> Result<i32, std::io::Error> {
+        Ok(0)
     }
 
     pub fn schema_info() {
