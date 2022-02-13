@@ -87,20 +87,20 @@ impl<S: TableSchema> TableFile<S> {
         pos == self.file.stream_len().unwrap() as i64
     }
 
-    pub fn read_row(&mut self) -> Option<S> {
+    pub fn read_row(&mut self) -> Option<(S, u64, u64)> {
         if self.at_end() {
             return None;
         }
 
         // Ensure the pointer is at the ending of the last record
-        let pos = self.position() as i64;
+        let pos_begin = self.position() as i64;
         if !self.at_beginning() && !self.at_end() {
-            self.seek(pos - ROWS_DELIMITER.len() as i64).unwrap();
-            let mut read_delimiter = [0u8; ROWS_DELIMITER.len()];
+            self.seek(pos_begin - DELIMITER_SIZE as i64).unwrap();
+            let mut read_delimiter = [0u8; DELIMITER_SIZE];
             let bytes_num = self.file.read(&mut read_delimiter).unwrap();
             // TODO: replace `bytes_num != 0` with an equivalent of `file.size == 0`
             if bytes_num != 0 && (
-                bytes_num != ROWS_DELIMITER.len() || read_delimiter != ROWS_DELIMITER
+                bytes_num != DELIMITER_SIZE || read_delimiter != ROWS_DELIMITER
             ) {
                 panic!("File pointer is corrupt!");
             }
@@ -131,6 +131,8 @@ impl<S: TableSchema> TableFile<S> {
                 break;
             }
         }
+        let pos_end = self.position();
+
         let fields_names = S::fields();
 
         assert_eq!(&fields_raw.len(), &fields_names.len());
@@ -142,7 +144,7 @@ impl<S: TableSchema> TableFile<S> {
             .collect()
             ;
 
-        Some(S::from_(fields))
+        Some((S::from_(fields), pos_begin as u64, pos_end))
     }
 
     pub fn write_row(&mut self, row: &S) -> Result<(u64, u64), std::io::Error> {
@@ -167,6 +169,15 @@ impl<S: TableSchema> TableFile<S> {
             Err(e) => Err(e)
         };
     }
+
+    pub fn erase(&mut self, begin: u64, end: u64) -> Result<(), std::io::Error>{
+        assert!(begin < end);
+
+        // TODO:
+        //  1. move data [end..] to [begin..]
+        //  2. self.file.set_len(self.file.stream_len().unwrap() - (end-begin))
+        Ok(())
+    }
 }
 
 
@@ -188,12 +199,15 @@ impl<S: TableSchema> Table<S> {
             Err(e) => return Err(e)
         };
 
-        Ok(Table {
+        let mut table = Table {
             name,
             index,
             file,
             schema: PhantomData,
-        })
+        };
+        table.refresh_indexes();
+
+        Ok(table)
     }
 
     pub fn select(&mut self, id: i32) -> Option<S> {
@@ -203,7 +217,7 @@ impl<S: TableSchema> Table<S> {
                     Some(pos) => {
                         self.file.seek(pos as i64);
                         match self.file.read_row() {
-                            Some(row) => Some(row),
+                            Some((row, _, _)) => Some(row),
                             None => None,
                         }
                     },
@@ -214,7 +228,7 @@ impl<S: TableSchema> Table<S> {
                 self.file.seek(0).unwrap();
                 loop {
                     match self.file.read_row() {
-                        Some(row) if row.get_id() == id => return Some(row),
+                        Some((row, _, _)) if row.get_id() == id => return Some(row),
                         None => return None,
                         _ => continue
                     }
@@ -247,12 +261,55 @@ impl<S: TableSchema> Table<S> {
         }
     }
 
-    pub fn update(&mut self, row: S) -> Result<i32, std::io::Error> {
-        Ok(0)
+    pub fn update(&mut self, row: S) -> () {
+        let pos = match self.find(row.get_id()) {
+            Some(e) => e,
+            None => return,
+        };
+
+
     }
 
-    pub fn delete(&mut self, row: S) -> Result<i32, std::io::Error> {
-        Ok(0)
+    pub fn delete(&mut self, id: i32) -> () {
+        let pos = match self.find(id) {
+            Some(e) => e,
+            None => return,
+        };
+
+
+    }
+
+    fn find(&mut self, id: i32) -> Option<(S, u64, u64)> {
+        self.file.seek(0).unwrap();
+
+        loop {
+            match self.file.read_row() {
+                Some((row, begin, end)) if row.get_id() == id => {
+                    return Some((row, begin, end))
+                },
+                None => return None,
+                _ => continue
+            }
+        }
+    }
+
+    fn refresh_indexes(&mut self) {
+        let mut index = match &mut self.index {
+            Some(i) => i,
+            None => return,
+        };
+
+        self.file.seek(0);
+        index.clear();
+
+        loop {
+            match self.file.read_row() {
+                Some((row, begin, end)) => {
+                    index.set(row.get_id(), begin);
+                },
+                None => break,
+            }
+        }
     }
 
     pub fn schema_info() {

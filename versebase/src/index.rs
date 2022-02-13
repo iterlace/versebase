@@ -99,6 +99,11 @@ impl TableIndex {
         self.dump().unwrap();
         result
     }
+
+    pub fn clear(&mut self) {
+        self.tree.clear();
+        self.dump().unwrap();
+    }
 }
 
 impl Drop for TableIndex {
