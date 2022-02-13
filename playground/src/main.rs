@@ -1,58 +1,72 @@
-#[macro_use]
-extern crate versebase_derive;
 
 use std::io::Write;
 use std::ops::Deref;
 use std::path::Path;
 
 
-use versebase::table::{Table, TableSchema};
+use versebase::table::{Table};
 use versebase::index::{TableIndex};
 use versebase::datatypes::{Int, Str, DateTime, DataType};
 use versebase::datatypes;
 
-
-
-#[derive(TableSchema)]
-struct Songs {
-    id: Int,
-    name: Str,
-    posted_at: DateTime,
-}
-
+use playground::schemas::*;
+use playground::db::Database;
 
 fn main() {
-    let mut table = Table::<Songs>::new(
-        String::from("test"),
-        Box::from(Path::new("/home/a/CLionProjects/versebase_playground/data/a.tbl")),
-        Some(TableIndex::new(
-            Box::from(Path::new("/home/a/CLionProjects/versebase_playground/data/a.idx"))
-        ).unwrap()),
-    ).unwrap();
+    let mut db = Database::new();
 
-    // Table::<Songs>::schema_info();
-    //
+    let artist1_slayer = Artists {
+        id: Int::new(1),
+        name: Str::new("Slayer".into()),
+    };
+
+    let artist2_kasabian = Artists {
+        id: Int::new(2),
+        name: Str::new("Kasabian".into()),
+    };
+
     let s1 = Songs {
         id: Int::new(1),
-        name: Str::new("Season in Abyss".into()),
-        posted_at: DateTime::new(chrono::offset::Utc::now().naive_utc())
+        name: Str::new("Seasons In The Abyss".into()),
+        artist_id: Int::new(artist1_slayer.id.get())
     };
+
     let s2 = Songs {
         id: Int::new(2),
-        name: Str::new("Easy Way Out".into()),
-        posted_at: DateTime::new(chrono::offset::Utc::now().naive_utc())
+        name: Str::new("Underdog".into()),
+        artist_id: Int::new(artist2_kasabian.id.get())
     };
+
     let s3 = Songs {
         id: Int::new(3),
-        name: Str::new("Saving Us".into()),
-        posted_at: DateTime::new(chrono::offset::Utc::now().naive_utc())
+        name: Str::new("Club foot".into()),
+        artist_id: Int::new(artist2_kasabian.id.get())
     };
 
-    let a = table.create(s1).unwrap_or_else(|e| panic!("Error creating song1, {:?}", e));
-    let b = table.create(s2).unwrap();
-    let c = table.create(s3).unwrap();
+    db.artists.create(artist1_slayer);
+    db.artists.create(artist2_kasabian);
 
-    println!("");
+    db.songs.create(s1);
+    db.songs.create(s2);
+    db.songs.create(s3);
+
+    // let a = songs.create(s1).unwrap_or_else(|e| panic!("Error creating song1, {:?}", e));
+    // let b = songs.create(s2).unwrap();
+    // let c = songs.create(s3).unwrap();
+
+    println!(
+        "{:?}\n{:?}\n",
+        db.artists.select(1),
+        db.artists.select(2),
+    );
+
+    println!(
+        "{:?}\n{:?}\n{:?}\n{:?}\n",
+        db.songs.select(1),
+        db.songs.select(2),
+        db.songs.select(3),
+        db.songs.select(4)
+    );
 
     // let mut file = std::fs::File::open("/home/a/CLionProjects/versebase_playground/data/a.tbl").unwrap();
     //

@@ -131,9 +131,6 @@ impl<S: TableSchema> TableFile<S> {
                 break;
             }
         }
-        for i in &fields_raw {
-            println!("{:?}", i);
-        }
         let fields_names = S::fields();
 
         assert_eq!(&fields_raw.len(), &fields_names.len());
