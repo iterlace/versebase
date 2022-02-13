@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::fmt::{Debug, Display, Formatter};
 use chrono;
 
 
@@ -11,7 +13,7 @@ pub trait DataType<T> {
     fn serialize(&self) -> Box<[u8]>;
 }
 
-
+#[derive(Debug)]
 pub struct Int {
     value: i32,
 }
@@ -38,7 +40,13 @@ impl DataType<i32> for Int {
     }
 }
 
+impl Display for Int {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", &self.value)
+    }
+}
 
+#[derive(Debug)]
 pub struct Str {
     value: String,
 }
@@ -65,7 +73,13 @@ impl DataType<String> for Str {
     }
 }
 
+impl Display for Str {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", &self.value)
+    }
+}
 
+#[derive(Debug)]
 pub struct DateTime {
     value: chrono::NaiveDateTime,
 }
@@ -95,6 +109,12 @@ impl DataType<chrono::NaiveDateTime> for DateTime {
 
     fn serialize(&self) -> Box<[u8]> {
         self.value.timestamp_nanos().to_ne_bytes().into()
+    }
+}
+
+impl Display for DateTime {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", &self.value)
     }
 }
 
