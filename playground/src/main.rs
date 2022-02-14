@@ -43,12 +43,12 @@ fn main() {
         artist_id: Int::new(artist2_kasabian.id.get())
     };
 
-    db.artists.create(artist1_slayer);
-    db.artists.create(artist2_kasabian);
-
-    db.songs.create(s1);
-    db.songs.create(s2);
-    db.songs.create(s3);
+    // db.artists.create(artist1_slayer);
+    // db.artists.create(artist2_kasabian);
+    //
+    // db.songs.create(s1);
+    // db.songs.create(s2);
+    // db.songs.create(s3);
 
     // let a = songs.create(s1).unwrap_or_else(|e| panic!("Error creating song1, {:?}", e));
     // let b = songs.create(s2).unwrap();
@@ -56,16 +56,21 @@ fn main() {
 
     println!(
         "{:?}\n{:?}\n",
-        db.artists.select(1),
-        db.artists.select(2),
+        db.artists.get(1),
+        db.artists.get(2),
     );
 
     println!(
         "{:?}\n{:?}\n{:?}\n{:?}\n",
-        db.songs.select(1),
-        db.songs.select(2),
-        db.songs.select(3),
-        db.songs.select(4)
+        db.songs.get(1),
+        db.songs.get(2),
+        db.songs.get(3),
+        db.songs.get(4)
+    );
+
+    println!(
+        "{:?}",
+        db.songs.get(1).unwrap().get_artist(&mut db)
     );
 
     // let mut file = std::fs::File::open("/home/a/CLionProjects/versebase_playground/data/a.tbl").unwrap();

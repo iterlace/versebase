@@ -4,16 +4,18 @@ use chrono;
 
 
 pub trait DataType<T> {
-    fn new(value: T) -> Self;
-    // TODO: rename to "from"
-    fn from_(raw: &[u8]) -> Self;
-    fn deserialize(raw: &[u8]) -> T;
+    fn new(value: T) -> Self
+        where Self: Sized;
+    fn from_(raw: &[u8]) -> Self
+        where Self: Sized;
+    fn deserialize(raw: &[u8]) -> T
+        where Self: Sized;
 
     fn get(&self) -> T;
     fn serialize(&self) -> Box<[u8]>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Int {
     value: i32,
 }
@@ -46,7 +48,7 @@ impl Display for Int {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Str {
     value: String,
 }
@@ -79,7 +81,7 @@ impl Display for Str {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DateTime {
     value: chrono::NaiveDateTime,
 }

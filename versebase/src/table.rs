@@ -1,12 +1,15 @@
 use std::path::Path;
 use std::marker::PhantomData;
 use std::collections::HashMap;
-use super::index::{TableIndex};
 use std::fs;
 use std::io;
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, Read, Seek, SeekFrom, Write};
 use std::io::ErrorKind::AlreadyExists;
+use std::any::Any;
+
+use super::index::{TableIndex};
+use super::datatypes::DataType;
 
 const DELIMITER_SIZE: usize = 8;
 const FIELDS_DELIMITER: [u8; DELIMITER_SIZE] = [255, 0, 255, 0, 255, 0, 255, 0];
@@ -17,6 +20,7 @@ pub trait TableSchema {
     fn fields() -> Vec<String>;
     fn print_info();
 
+    // fn get<T>(&self, field: String) -> Option<Box<dyn DataType<T>>>;
     fn get_id(&self) -> i32;
     fn serialize_to_vec(&self) -> Vec<(String, Box<[u8]>)>;
     fn serialize_to_map(&self) -> HashMap<String, Box<[u8]>>;
@@ -210,7 +214,7 @@ impl<S: TableSchema> Table<S> {
         Ok(table)
     }
 
-    pub fn select(&mut self, id: i32) -> Option<S> {
+    pub fn get(&mut self, id: i32) -> Option<S> {
         match &mut self.index {
             Some(index) => {
                 return match index.get(id) {
@@ -237,6 +241,37 @@ impl<S: TableSchema> Table<S> {
         };
     }
 
+    pub fn select<T>(
+        &mut self,
+        filter: HashMap<String, Box<impl DataType<T>>>
+    ) -> Option<S> {
+        None
+        // match &mut self.index {
+        //     Some(index) => {
+        //         return match index.get(id) {
+        //             Some(pos) => {
+        //                 self.file.seek(pos as i64);
+        //                 match self.file.read_row() {
+        //                     Some((row, _, _)) => Some(row),
+        //                     None => None,
+        //                 }
+        //             },
+        //             None => None,
+        //         }
+        //     }
+        //     None => {
+        //         self.file.seek(0).unwrap();
+        //         loop {
+        //             match self.file.read_row() {
+        //                 Some((row, _, _)) if row.get_id() == id => return Some(row),
+        //                 None => return None,
+        //                 _ => continue
+        //             }
+        //         }
+        //     }
+        // };
+    }
+
     pub fn create(&mut self, row: S) -> Result<i32, std::io::Error> {
         match &mut self.index {
             Some(index) => {
@@ -249,7 +284,7 @@ impl<S: TableSchema> Table<S> {
                 return Ok(row.get_id());
             },
             None => {
-                let existing = self.select((&row).get_id());
+                let existing = self.get((&row).get_id());
                 match existing {
                     Some(_) => panic!("id already exists"),  // TODO: custom DatabaseError
                     None => {

@@ -48,7 +48,9 @@ fn impl_table_schema(ast: &syn::DeriveInput) -> TokenStream {
                 Self { #( #field_name ),* }
             }
 
-            // fn into_map(&self) -> std::collections::HashMap<String, Box<std::any::Any>> {
+            // fn into_map(
+            //     &self
+            // ) -> std::collections::HashMap<String, Box<impl versebase::datatypes::DataType<std::any::Any>>> {
             //     std::collections::HashMap::from([
             //         #(
             //             (
@@ -58,6 +60,7 @@ fn impl_table_schema(ast: &syn::DeriveInput) -> TokenStream {
             //         ),*
             //     ])
             // }
+
 
         }
 
