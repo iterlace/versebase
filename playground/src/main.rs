@@ -6,7 +6,7 @@ use std::path::Path;
 
 use versebase::table::{Table, TableSchema};
 use versebase::index::{TableIndex};
-use versebase::datatypes::{Int, Str, DateTime, DataType};
+use versebase::datatypes::{Int, Str, DateTime, DataType, DType};
 use versebase::datatypes;
 
 use playground::schemas::*;
@@ -54,20 +54,25 @@ fn main() {
     // let b = songs.create(s2).unwrap();
     // let c = songs.create(s3).unwrap();
 
-    println!(
-        "{:?}\n{:?}\n",
-        db.artists.get(1),
-        // db.artists.get(1).unwrap().get("name".into()).unwrap(),
-        db.artists.get(2).unwrap().get("name".to_string()).unwrap(),
-    );
+    // println!(
+    //     "{:?}\n{:?}\n",
+    //     db.artists.get(1),
+    //     // db.artists.get(1).unwrap().get("name".into()).unwrap(),
+    //     db.artists.get(2).unwrap().get("name".to_string()).unwrap(),
+    // );
 
     println!(
-        "{:?}\n{:?}\n{:?}\n{:?}\n",
-        db.songs.get(1),
-        db.songs.get(2),
-        db.songs.get(3),
-        db.songs.get(4)
+        "{:?}\n",
+        db.songs.select([("artist_id".to_string(), DType::Int(Int::new(2)))].into()),
     );
+
+    // println!(
+    //     "{:?}\n{:?}\n{:?}\n{:?}\n",
+    //     db.songs.get(1),
+    //     db.songs.get(2),
+    //     db.songs.get(3),
+    //     db.songs.get(4)
+    // );
 
     println!(
         "{:?}",

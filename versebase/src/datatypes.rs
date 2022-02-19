@@ -16,7 +16,7 @@ pub trait DataType<T> {
     fn serialize(&self) -> Box<[u8]>;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Int {
     value: i32,
 }
@@ -49,7 +49,7 @@ impl Display for Int {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Str {
     value: String,
 }
@@ -82,7 +82,7 @@ impl Display for Str {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DateTime {
     value: chrono::NaiveDateTime,
 }
@@ -122,7 +122,7 @@ impl Display for DateTime {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum DType {
     Int(Int),
     Str(Str),

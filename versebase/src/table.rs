@@ -242,35 +242,29 @@ impl<S: TableSchema> Table<S> {
         };
     }
 
-    pub fn select<T>(
-        &mut self,
-        filter: HashMap<String, Box<impl DataType<T>>>
-    ) -> Option<S> {
-        None
-        // match &mut self.index {
-        //     Some(index) => {
-        //         return match index.get(id) {
-        //             Some(pos) => {
-        //                 self.file.seek(pos as i64);
-        //                 match self.file.read_row() {
-        //                     Some((row, _, _)) => Some(row),
-        //                     None => None,
-        //                 }
-        //             },
-        //             None => None,
-        //         }
-        //     }
-        //     None => {
-        //         self.file.seek(0).unwrap();
-        //         loop {
-        //             match self.file.read_row() {
-        //                 Some((row, _, _)) if row.get_id() == id => return Some(row),
-        //                 None => return None,
-        //                 _ => continue
-        //             }
-        //         }
-        //     }
-        // };
+    pub fn select(&mut self, filter: HashMap<String, DType>) -> Vec<S> {
+        self.file.seek(0).unwrap();
+
+        let mut result = Vec::<S>::new();
+        loop {
+            match self.file.read_row() {
+                Some((row, _, _)) => {
+                    let mut is_valid = true;
+                    for (k, v) in filter.iter() {
+                        if &row.get(k.to_string()).unwrap() != v {
+                            is_valid = false;
+                            break;
+                        }
+                    }
+                    if is_valid {
+                        result.push(row);
+                    }
+                },
+                None => break
+            }
+        };
+
+        result
     }
 
     pub fn create(&mut self, row: S) -> Result<i32, std::io::Error> {
