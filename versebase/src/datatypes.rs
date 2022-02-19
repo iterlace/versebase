@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use chrono;
+use chrono::Date;
 
 
 pub trait DataType<T> {
@@ -120,6 +121,13 @@ impl Display for DateTime {
     }
 }
 
+
+#[derive(Debug)]
+pub enum DType {
+    Int(Int),
+    Str(Str),
+    DateTime(DateTime),
+}
 
 
 #[cfg(test)]

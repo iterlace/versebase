@@ -4,7 +4,7 @@ use std::ops::Deref;
 use std::path::Path;
 
 
-use versebase::table::{Table};
+use versebase::table::{Table, TableSchema};
 use versebase::index::{TableIndex};
 use versebase::datatypes::{Int, Str, DateTime, DataType};
 use versebase::datatypes;
@@ -57,7 +57,8 @@ fn main() {
     println!(
         "{:?}\n{:?}\n",
         db.artists.get(1),
-        db.artists.get(2),
+        // db.artists.get(1).unwrap().get("name".into()).unwrap(),
+        db.artists.get(2).unwrap().get("name".to_string()).unwrap(),
     );
 
     println!(

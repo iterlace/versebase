@@ -2,7 +2,8 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use std::any::{Any, TypeId};
-use quote::{quote, ToTokens};
+use quote::{quote, format_ident, quote_spanned, IdentFragment, ToTokens};
+use quote::__private::ext::RepAsIteratorExt;
 use syn::{parse_macro_input, Data, DataStruct, DeriveInput, Fields, LitStr, Token, Ident};
 
 
@@ -34,7 +35,11 @@ fn impl_table_schema(ast: &syn::DeriveInput) -> TokenStream {
         .iter()
         .map(|field| (&field.ident).clone().unwrap())
         .collect()
-    ;
+        ;
+    // TODO: verify "id" column exists
+    // let field_name2 = vec!["versebase::datatypes::DType::Int".to_token_stream()];
+    // println!("{:?}", field_name2);
+
     let field_datatype: Vec<syn::Type> = fields
         .iter()
         .map(|field|  (&field.ty).clone())
@@ -47,21 +52,6 @@ fn impl_table_schema(ast: &syn::DeriveInput) -> TokenStream {
             fn new(#( #field_name: #field_datatype ),*) -> Self {
                 Self { #( #field_name ),* }
             }
-
-            // fn into_map(
-            //     &self
-            // ) -> std::collections::HashMap<String, Box<impl versebase::datatypes::DataType<std::any::Any>>> {
-            //     std::collections::HashMap::from([
-            //         #(
-            //             (
-            //                 std::stringify!(#field_name),
-            //                 Box::<#field_datatype>::from(self.#field_name)
-            //             )
-            //         ),*
-            //     ])
-            // }
-
-
         }
 
         impl TableSchema for #name {
@@ -89,8 +79,30 @@ fn impl_table_schema(ast: &syn::DeriveInput) -> TokenStream {
                 }
             }
 
+            fn get(&self, field: String) -> Option<versebase::datatypes::DType> {
+                match field.as_str() {
+                    #(
+                        std::stringify!(#field_name) => Some(
+                            versebase::datatypes::DType::#field_datatype(self.#field_name.clone())
+                        )
+                    ),*,
+                    _ => None,
+                }
+            }
+
             fn get_id(&self) -> i32 {
                 self.id.get()
+            }
+
+            fn to_map(&self) -> std::collections::HashMap<String, versebase::datatypes::DType> {
+                std::collections::HashMap::from([
+                    #(
+                        (
+                            String::from(std::stringify!(#field_name)),
+                            versebase::datatypes::DType::#field_datatype(self.#field_name.clone())
+                        )
+                    ),*
+                ])
             }
 
             fn serialize_to_vec(&self) -> std::vec::Vec<(String, Box<[u8]>)> {

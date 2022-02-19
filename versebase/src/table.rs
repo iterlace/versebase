@@ -9,7 +9,7 @@ use std::io::ErrorKind::AlreadyExists;
 use std::any::Any;
 
 use super::index::{TableIndex};
-use super::datatypes::DataType;
+use super::datatypes::{DataType, DType};
 
 const DELIMITER_SIZE: usize = 8;
 const FIELDS_DELIMITER: [u8; DELIMITER_SIZE] = [255, 0, 255, 0, 255, 0, 255, 0];
@@ -20,8 +20,9 @@ pub trait TableSchema {
     fn fields() -> Vec<String>;
     fn print_info();
 
-    // fn get<T>(&self, field: String) -> Option<Box<dyn DataType<T>>>;
+    fn get(&self, field: String) -> Option<DType>;
     fn get_id(&self) -> i32;
+    fn to_map(&self) -> HashMap<String, DType>;
     fn serialize_to_vec(&self) -> Vec<(String, Box<[u8]>)>;
     fn serialize_to_map(&self) -> HashMap<String, Box<[u8]>>;
 }

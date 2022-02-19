@@ -6,7 +6,7 @@ use std::path::Path;
 
 use versebase::table::{Table, TableSchema};
 use versebase::index::{TableIndex};
-use versebase::datatypes::{Int, Str, DateTime, DataType};
+use versebase::datatypes::{Int, Str, DateTime, DataType, DType};
 use versebase::datatypes;
 use super::db::Database;
 
@@ -26,16 +26,6 @@ pub struct Artists {
     pub id: Int,
     pub name: Str,
 }
-
-// impl Artists {
-//     fn get<T>(&self, field: String) -> Option<Box<impl DataType<T>>> {
-//         match field.as_str() {
-//             "id" => Some(Box::<Int>::new(self.id.clone())),
-//             "name" => Some(Box::<Str>::new(self.name.clone())),
-//             _ => None
-//         }
-//     }
-// }
 
 impl Artists {
     pub fn get_songs(&self, db: &mut Database) -> Vec<Songs> {
