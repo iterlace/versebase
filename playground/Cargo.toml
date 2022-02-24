@@ -7,3 +7,4 @@ edition = "2021"
 versebase = { path = "../versebase" }
 versebase_derive = { path = "../versebase/versebase_derive" }
 chrono = "0.4.19"
+regex = "1.5.4"

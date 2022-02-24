@@ -11,8 +11,15 @@ use versebase::datatypes;
 
 use playground::schemas::*;
 use playground::db::Database;
+use playground::view::Playground;
 
 fn main() {
+    let mut app = Playground::new();
+
+    app.run();
+
+    return;
+
     let mut db = Database::new();
 
     let artist1_slayer = Artists {

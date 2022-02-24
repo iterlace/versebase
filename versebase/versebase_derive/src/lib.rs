@@ -56,7 +56,7 @@ fn impl_table_schema(ast: &syn::DeriveInput) -> TokenStream {
 
         impl TableSchema for #name {
 
-            fn fields() -> Vec<String> {
+            fn fields() -> std::vec::Vec<String> {
                 [ #( std::stringify!(#field_name).to_string() ),*].to_vec()
             }
 
@@ -125,18 +125,23 @@ fn impl_table_schema(ast: &syn::DeriveInput) -> TokenStream {
             }
         }
 
-        // impl Into<std::collections::HashMap<String, Box<dyn versebase::datatypes::DataType<std::any::Any>>>> for #name {
-        //     fn into(&self) -> std::collections::HashMap<String, Box<dyn versebase::datatypes::DataType<std::any::Any>>> {
-        //         std::collections::HashMap::from([
-        //             #(
-        //                 (
-        //                     std::stringify!(#field_name),
-        //                     Box::<dyn versebase::datatypes::DataType<std::any::Any>>::from(self.#field_name)
-        //                 )
-        //             ),*
-        //         ])
-        //     }
-        // }
+        impl std::fmt::Display for #name {
+
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                let parts: std::vec::Vec<String> = vec![
+                    #(
+                        format!(
+                            "{}: {:?}",
+                            std::stringify!(#field_name),
+                            self.#field_name.get()
+                        )
+                    ),*
+                ];
+
+                write!(f, "{}{{ {} }}", stringify!(#name), parts.join(", "))
+            }
+
+        }
 
     };
     eprintln!("{}", gen.to_string());

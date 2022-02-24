@@ -1,10 +1,9 @@
 use std::path::Path;
 use std::marker::PhantomData;
 use std::collections::HashMap;
-use std::fs;
-use std::io;
-use std::fs::{File, OpenOptions};
-use std::io::{BufReader, Read, Seek, SeekFrom, Write};
+use std::fmt;
+use std::fs::{self, File, OpenOptions};
+use std::io::{self, BufReader, Read, Seek, SeekFrom, Write};
 use std::io::ErrorKind::AlreadyExists;
 use std::any::Any;
 
@@ -15,7 +14,7 @@ const DELIMITER_SIZE: usize = 8;
 const FIELDS_DELIMITER: [u8; DELIMITER_SIZE] = [255, 0, 255, 0, 255, 0, 255, 0];
 const ROWS_DELIMITER: [u8; DELIMITER_SIZE] = [0, 127, 0, 255, 0, 127, 0, 255];
 
-pub trait TableSchema {
+pub trait TableSchema: fmt::Display {
     fn from_(raw: Vec<(String, Box<[u8]>)>) -> Self;
     fn fields() -> Vec<String>;
     fn print_info();
