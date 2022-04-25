@@ -4,6 +4,7 @@ use std::ops::Deref;
 use std::path::Path;
 
 
+use versebase::error;
 use versebase::table::{Table, TableSchema};
 use versebase::index::{TableIndex};
 use versebase::datatypes::{Int, Str, DateTime, DataType, DType};
@@ -42,7 +43,7 @@ pub struct Songs {
 }
 
 impl Songs {
-    pub fn get_artist(&self, db: &mut Database) -> Option<Artists> {
+    pub fn get_artist(&self, db: &mut Database) -> Result<Artists, versebase::error::Error> {
         db.artists.get(self.artist_id.get())
     }
 }
@@ -57,7 +58,7 @@ pub struct Lyrics {
 }
 
 impl Lyrics {
-    pub fn get_song(&self, db: &mut Database) -> Option<Songs> {
+    pub fn get_song(&self, db: &mut Database) -> Result<Songs, versebase::error::Error> {
         db.songs.get(self.song_id.get())
     }
 }
@@ -71,10 +72,10 @@ pub struct LikedSongs {
 }
 
 impl LikedSongs {
-    pub fn get_user(&self, db: &mut Database) -> Option<Users> {
+    pub fn get_user(&self, db: &mut Database) -> Result<Users, versebase::error::Error> {
         db.users.get(self.user_id.get())
     }
-    pub fn get_song(&self, db: &mut Database) -> Option<Songs> {
+    pub fn get_song(&self, db: &mut Database) -> Result<Songs, versebase::error::Error> {
         db.songs.get(self.song_id.get())
     }
 }

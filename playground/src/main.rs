@@ -50,12 +50,12 @@ fn main() {
         artist_id: Int::new(artist2_kasabian.id.get())
     };
 
-    // db.artists.create(artist1_slayer);
-    // db.artists.create(artist2_kasabian);
-    //
-    // db.songs.create(s1);
-    // db.songs.create(s2);
-    // db.songs.create(s3);
+    db.artists.create(artist1_slayer);
+    db.artists.create(artist2_kasabian);
+
+    db.songs.create(s1);
+    db.songs.create(s2);
+    db.songs.create(s3);
 
     // let a = songs.create(s1).unwrap_or_else(|e| panic!("Error creating song1, {:?}", e));
     // let b = songs.create(s2).unwrap();
@@ -68,10 +68,10 @@ fn main() {
     //     db.artists.get(2).unwrap().get("name".to_string()).unwrap(),
     // );
 
-    println!(
-        "{:?}\n",
-        db.songs.select([("artist_id".to_string(), DType::Int(Int::new(2)))].into()),
-    );
+    // println!(
+    //     "{:?}\n",
+    //     db.songs.select([("artist_id".to_string(), DType::Int(Int::new(2)))].into()),
+    // );
 
     // println!(
     //     "{:?}\n{:?}\n{:?}\n{:?}\n",
@@ -81,10 +81,10 @@ fn main() {
     //     db.songs.get(4)
     // );
 
-    println!(
-        "{:?}",
-        db.songs.get(1).unwrap().get_artist(&mut db)
-    );
+    // println!(
+    //     "{:?}",
+    //     db.songs.get(1).unwrap().get_artist(&mut db)
+    // );
 
     // let mut file = std::fs::File::open("/home/a/CLionProjects/versebase_playground/data/a.tbl").unwrap();
     //

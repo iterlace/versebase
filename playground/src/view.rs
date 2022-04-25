@@ -40,6 +40,7 @@ impl Playground {
                     "insert" => self.insert(command),
                     "delete" => self.delete(command),
                     "help" => self.help(),
+                    "exit" => break,
                     _ => self.help(),
                 },
                 None => {
@@ -86,12 +87,12 @@ impl Playground {
         // let record: Option<dyn TableSchema>;
         match (&command.arguments[0]).as_str() {
             "artists" => match &self.db.artists.get(id) {
-                Some(artist) => println!("{}", artist),
-                None => {}
+                Ok(artist) => println!("{}", artist),
+                Err(e) => println!("Error: {}", e.message)
             },
             "songs" => match &self.db.songs.get(id) {
-                Some(song) => println!("{}", song),
-                None => {}
+                Ok(song) => println!("{}", song),
+                Err(e) => println!("Error: {}", e.message)
             },
             table_name => {
                 println!("Table \"{}\" is not supported", table_name);
@@ -108,12 +109,36 @@ impl Playground {
         println!("insert {:?}", command);
     }
 
-    fn delete(&self, command: Command) {
+    fn delete(&mut self, command: Command) {
         if command.arguments.len() != 2 {
             println!("Usage: delete [artists, songs] <id>");
             return;
         }
         println!("delete {:?}", command);
+
+        let id = match command.arguments[1].parse::<i32>() {
+            Ok(val) => val,
+            Err(_) => {
+                println!("{} is not a valid id!", &command.arguments[1]);
+                return;
+            }
+        };
+
+        // let record: Option<dyn TableSchema>;
+        match (&command.arguments[0]).as_str() {
+            "artists" => match &self.db.artists.delete(id) {
+                Ok(_) => println!("Successfully deleted!"),
+                Err(e) => println!("Error: {}", e.message)
+            },
+            "songs" => match &self.db.songs.delete(id) {
+                Ok(_) => println!("Successfully deleted!"),
+                Err(e) => println!("Error: {}", e.message)
+            },
+            table_name => {
+                println!("Table \"{}\" is not supported", table_name);
+                return;
+            }
+        }
     }
 
     fn help(&self) {
@@ -122,7 +147,8 @@ impl Playground {
                     \tupdate [artists, songs] <id>\n\
                     \tinsert [artists, songs] <id>\n\
                     \tdelete [artists, songs] <id>\n\
-                    \thelp\
+                    \thelp\n\
+                    \texit\
         ");
     }
 }

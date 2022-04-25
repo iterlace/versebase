@@ -7,6 +7,7 @@ use std::io::{self, BufReader, Read, Seek, SeekFrom, Write};
 use std::io::ErrorKind::AlreadyExists;
 use std::any::Any;
 
+use super::error::{self, Error, ErrorKind};
 use super::index::{TableIndex};
 use super::datatypes::{DataType, DType};
 
@@ -38,10 +39,10 @@ struct TableFile<S: TableSchema> {
 // [row3_field1](FIELDS_DELIMITER)[row3_field2](FIELDS_DELIMITER)[row3_field3](ROWS_DELIMITER)
 
 impl<S: TableSchema> TableFile<S> {
-    pub fn new(filepath: Box<Path>) -> Result<Self, io::Error> {
+    pub fn new(filepath: Box<Path>) -> Result<Self, Error> {
         let file = match Self::init_file(&filepath) {
             Ok(f) => f,
-            Err(e) => return Err(e),
+            Err(e) => return Err(e.into()),
         };
 
         Ok(TableFile {
@@ -66,14 +67,14 @@ impl<S: TableSchema> TableFile<S> {
         Result::Ok(file)
     }
 
-    pub fn seek(&mut self, pos: i64) -> Result<(), std::io::Error> {
+    pub fn seek(&mut self, pos: i64) -> Result<(), Error> {
         let seek = match pos {
             pos if pos >= 0 => SeekFrom::Start(pos as u64),
             pos => SeekFrom::End(pos + 1)
         };
         return match self.file.seek(seek) {
             Ok(_) => Ok(()),
-            Err(e) => Err(e)
+            Err(e) => Err(e.into())
         };
     }
 
@@ -86,36 +87,39 @@ impl<S: TableSchema> TableFile<S> {
         pos == 0
     }
 
-    fn at_end(&mut self) -> bool {
+    fn at_end(&mut self) -> Result<bool, Error> {
         let pos = self.position() as i64;
-        pos == self.file.stream_len().unwrap() as i64
+        Ok(pos == self.file.stream_len()? as i64)
     }
 
-    pub fn read_row(&mut self) -> Option<(S, u64, u64)> {
-        if self.at_end() {
-            return None;
+    pub fn read_row(&mut self) -> Result<Option<(S, u64, u64)>, Error> {
+        if self.at_end()? {
+            return Ok(None);
         }
 
         // Ensure the pointer is at the ending of the last record
         let pos_begin = self.position() as i64;
-        if !self.at_beginning() && !self.at_end() {
-            self.seek(pos_begin - DELIMITER_SIZE as i64).unwrap();
+        if !self.at_beginning() && !self.at_end()? {
+            self.seek(pos_begin - DELIMITER_SIZE as i64)?;
             let mut read_delimiter = [0u8; DELIMITER_SIZE];
-            let bytes_num = self.file.read(&mut read_delimiter).unwrap();
+            let bytes_num = self.file.read(&mut read_delimiter)?;
             // TODO: replace `bytes_num != 0` with an equivalent of `file.size == 0`
             if bytes_num != 0 && (
                 bytes_num != DELIMITER_SIZE || read_delimiter != ROWS_DELIMITER
             ) {
-                panic!("File pointer is corrupt!");
+                return Err(Error {
+                    kind: ErrorKind::FilePointerCorrupt,
+                    message: "file pointer is corrupt".to_string()
+                });
             }
         }
 
         let mut buf = Vec::<u8>::with_capacity(16);
         let mut fields_raw = Vec::<Box<[u8]>>::new();
 
-        while !self.at_end() {
+        while !self.at_end()? {
             let mut b = [0u8; 1];
-            self.file.read_exact(&mut b).unwrap();
+            self.file.read_exact(&mut b)?;
             &buf.push(b[0]);
 
             let possible_delimiter = match buf.len() as i32 - DELIMITER_SIZE as i32 {
@@ -148,12 +152,12 @@ impl<S: TableSchema> TableFile<S> {
             .collect()
             ;
 
-        Some((S::from_(fields), pos_begin as u64, pos_end))
+        Ok(Some((S::from_(fields), pos_begin as u64, pos_end)))
     }
 
-    pub fn write_row(&mut self, row: &S) -> Result<(u64, u64), std::io::Error> {
+    pub fn write_row(&mut self, row: &S) -> Result<(u64, u64), Error> {
         match self.seek(-1) {
-            Err(e) => return Err(e),
+            Err(e) => return Err(e.into()),
             _ => ()
         };
         let data = row.serialize_to_vec();
@@ -170,16 +174,26 @@ impl<S: TableSchema> TableFile<S> {
         let end_pos = self.position();
         return match self.file.sync_data() {
             Ok(_) => Ok((begin_pos, end_pos)),
-            Err(e) => Err(e)
+            Err(e) => Err(e.into())
         };
     }
 
-    pub fn erase(&mut self, begin: u64, end: u64) -> Result<(), std::io::Error>{
+    pub fn erase(&mut self, begin: u64, end: u64) -> Result<(), Error> {
         assert!(begin < end);
 
-        // TODO:
-        //  1. move data [end..] to [begin..]
-        //  2. self.file.set_len(self.file.stream_len().unwrap() - (end-begin))
+        // Save data after the "end" pointer
+        self.file.seek(SeekFrom::Start(end));
+        let mut buf = Vec::<u8>::with_capacity((self.file.stream_len()? - end) as usize);
+        self.file.read_to_end(&mut buf);
+
+        // Crop file after "end"
+        self.file.set_len(begin);
+        self.file.seek(SeekFrom::End(0));
+        // Write all the saved subsequent data
+        self.file.write_all(&buf);
+
+        self.file.flush()?;
+
         Ok(())
     }
 }
@@ -197,7 +211,7 @@ impl<S: TableSchema> Table<S> {
         name: String,
         filepath: Box<Path>,
         index: Option<TableIndex>,
-    ) -> Result<Table<S>, io::Error> {
+    ) -> Result<Table<S>, Error> {
         let file = match TableFile::<S>::new(filepath.clone()) {
             Ok(f) => f,
             Err(e) => return Err(e)
@@ -214,26 +228,36 @@ impl<S: TableSchema> Table<S> {
         Ok(table)
     }
 
-    pub fn get(&mut self, id: i32) -> Option<S> {
+    pub fn get(&mut self, id: i32) -> Result<S, Error> {
         match &mut self.index {
             Some(index) => {
                 return match index.get(id) {
                     Some(pos) => {
                         self.file.seek(pos as i64);
                         match self.file.read_row() {
-                            Some((row, _, _)) => Some(row),
-                            None => None,
+                            Ok(Some((row, _, _))) => Ok(row),
+                            Ok(None) => Err(Error {
+                                kind: ErrorKind::NotFound,
+                                message: "record with a given id doesn't exist".to_string()
+                            }),
+                            Err(e) => Err(e)
                         }
-                    },
-                    None => None,
-                }
+                    }
+                    None => Err(Error {
+                        kind: ErrorKind::NotFound,
+                        message: "record with a given id doesn't exist".to_string()
+                    }),
+                };
             }
             None => {
-                self.file.seek(0).unwrap();
+                self.file.seek(0)?;
                 loop {
-                    match self.file.read_row() {
-                        Some((row, _, _)) if row.get_id() == id => return Some(row),
-                        None => return None,
+                    match self.file.read_row()? {
+                        Some((row, _, _)) if row.get_id() == id => return Ok(row),
+                        None => return Err(Error {
+                            kind: ErrorKind::NotFound,
+                            message: "record with a given id doesn't exist".to_string()
+                        }),
                         _ => continue
                     }
                 }
@@ -241,104 +265,119 @@ impl<S: TableSchema> Table<S> {
         };
     }
 
-    pub fn select(&mut self, filter: HashMap<String, DType>) -> Vec<S> {
-        self.file.seek(0).unwrap();
+    pub fn select(&mut self, filter: HashMap<String, DType>) -> Result<Vec<S>, Error> {
+        self.file.seek(0)?;
 
         let mut result = Vec::<S>::new();
         loop {
-            match self.file.read_row() {
+            match self.file.read_row()? {
                 Some((row, _, _)) => {
                     let mut is_valid = true;
-                    for (k, v) in filter.iter() {
-                        if &row.get(k.to_string()).unwrap() != v {
-                            is_valid = false;
-                            break;
+                    for (filter_field, filter_value) in filter.iter() {
+                        match &row.get(filter_field.to_string()) {
+                            Some(value) if value != filter_value => {
+                                is_valid = false;
+                                break;
+                            }
+                            _ => continue
                         }
                     }
                     if is_valid {
                         result.push(row);
                     }
-                },
+                }
                 None => break
             }
         };
 
-        result
+        Ok(result)
     }
 
-    pub fn create(&mut self, row: S) -> Result<i32, std::io::Error> {
-        match &mut self.index {
+    pub fn create(&mut self, row: S) -> Result<i32, Error> {
+        return match &mut self.index {
             Some(index) => {
                 if index.exists(row.get_id()) {
-                    panic!("id already exists")
+                    return Err(Error {
+                        kind: ErrorKind::AlreadyExists,
+                        message: "id already exists".to_string()
+                    })
                 }
                 let written_pos = self.file.write_row(&row).unwrap();
                 index.set(row.get_id(), written_pos.0);
 
-                return Ok(row.get_id());
-            },
+                Ok(row.get_id())
+            }
             None => {
                 let existing = self.get((&row).get_id());
                 match existing {
-                    Some(_) => panic!("id already exists"),  // TODO: custom DatabaseError
-                    None => {
+                    Ok(_) => Err(Error {
+                        kind: ErrorKind::AlreadyExists,
+                        message: "id already exists".to_string()
+                    }),
+                    Err(Error {kind: ErrorKind::AlreadyExists, .. }) => {
                         self.file.write_row(&row).unwrap();
-                        return Ok((&row).get_id());
-                    }
+                        Ok((&row).get_id())
+                    },
+                    Err(e) => Err(e)
                 }
             }
         }
     }
 
-    pub fn update(&mut self, row: S) -> () {
-        let pos = match self.find(row.get_id()) {
+    pub fn update(&mut self, row: S) -> Result<(), Error> {
+        let pos = match self.find(row.get_id())? {
             Some(e) => e,
-            None => return,
+            None =>  return Err(Error {kind: ErrorKind::NotFound, message: "record not found".to_string()}),
         };
-
-
+        return Ok(());
     }
 
-    pub fn delete(&mut self, id: i32) -> () {
-        let pos = match self.find(id) {
+    pub fn delete(&mut self, id: i32) -> Result<(), Error> {
+        let (row, begin, end) = match self.find(id)? {
             Some(e) => e,
-            None => return,
+            None => return Err(Error {kind: ErrorKind::NotFound, message: "record not found".to_string()}),
         };
+        self.file.erase(begin, end)?;
+        self.refresh_indexes();
 
-
+        return Ok(());
     }
 
-    fn find(&mut self, id: i32) -> Option<(S, u64, u64)> {
-        self.file.seek(0).unwrap();
+    /// Returns a tuple of (TableSchema, begin, end), where begin & end are byte-level dimensions
+    /// of a given row.
+    fn find(&mut self, id: i32) -> Result<Option<(S, u64, u64)>, Error> {
+        self.file.seek(0)?;
 
         loop {
-            match self.file.read_row() {
+            match self.file.read_row()? {
                 Some((row, begin, end)) if row.get_id() == id => {
-                    return Some((row, begin, end))
-                },
-                None => return None,
+                    return Ok(Some((row, begin, end)));
+                }
+                None => return Ok(None),
                 _ => continue
             }
         }
     }
 
-    fn refresh_indexes(&mut self) {
+    fn refresh_indexes(&mut self) -> Result<(), Error> {
         let mut index = match &mut self.index {
             Some(i) => i,
-            None => return,
+            None => return Ok(()),
         };
 
         self.file.seek(0);
         index.clear();
 
         loop {
-            match self.file.read_row() {
+            match self.file.read_row()? {
                 Some((row, begin, end)) => {
                     index.set(row.get_id(), begin);
-                },
+                }
                 None => break,
             }
-        }
+        };
+
+        Ok(())
     }
 
     pub fn schema_info() {
