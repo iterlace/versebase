@@ -4,6 +4,7 @@ use versebase::table::TableSchema;
 use super::db::{Database};
 use super::schemas::*;
 use versebase::datatypes::{Int, Str, DateTime, DataType, DType};
+use std::collections::HashMap;
 use versebase::datatypes;
 
 
@@ -38,6 +39,7 @@ impl Playground {
 
             match self.parse_db_operation(input.as_str()) {
                 Some(command) => match command.name.as_str() {
+                    "list" => self.list(command),
                     "get" => self.get(command),
                     "update" => self.update(command),
                     "insert" => self.insert(command),
@@ -71,6 +73,36 @@ impl Playground {
             ;
 
         Some(Command { name: command_name, arguments })
+    }
+
+    fn list(&mut self, command: Command) {
+        if command.arguments.len() != 1 {
+            println!("Usage: list [artists, songs]");
+            return;
+        }
+
+        match (&command.arguments[0]).as_str() {
+            "artists" => match &self.db.artists.select([].into()) {
+                Ok(artists) => {
+                    for artist in artists {
+                        println!("{}", artist);
+                    }
+                },
+                Err(e) => println!("Error: {}", e.message)
+            },
+            "songs" => match &self.db.songs.select([].into()) {
+                Ok(songs) => {
+                    for song in songs {
+                        println!("{}", song);
+                    }
+                },
+                Err(e) => println!("Error: {}", e.message)
+            },
+            table_name => {
+                println!("Table \"{}\" is not supported", table_name);
+                return;
+            }
+        }
     }
 
     fn get(&mut self, command: Command) {
@@ -300,6 +332,7 @@ impl Playground {
 
     fn help(&self) {
         println!("List of available commands:\n\
+                    \tlist [artists, songs]\n\
                     \tget [artists, songs] <id>\n\
                     \tupdate [artists, songs] <id> [field1>; <field2>; ...]\n\
                     \tinsert [artists, songs] [field1>; <field2>; ...]\n\
